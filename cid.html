@@ -60,9 +60,10 @@
             color: #8a8a9a;
             font-size: 14px;
         }
-        .file-upload:hover {
+        .file-upload:hover, .file-upload.dragover {
             border-color: #007aff;
             color: #ffffff;
+            background-color: #2a2a32;
         }
         select {
             width: 100%;
@@ -135,8 +136,8 @@
     <h2>F3X Image to BMP Hex Converter</h2>
 
     <div class="group">
-        <label>1. Select Image</label>
-        <label for="imgInput" class="file-upload" id="fileLabel">Click to select file</label>
+        <label>1. Select / Paste Image</label>
+        <label for="imgInput" class="file-upload" id="fileLabel">Click, drop, or press Ctrl+V to paste</label>
         <input type="file" id="imgInput" accept="image/*">
     </div>
 
@@ -146,6 +147,8 @@
             <option value="16">16 x 16</option>
             <option value="32" selected>32 x 32</option>
             <option value="64">64 x 64</option>
+            <option value="128">128 x 128</option>
+            <option value="256">256 x 256</option>
         </select>
     </div>
 
@@ -153,7 +156,7 @@
         <label>Preview</label>
         <div class="preview-box">
             <canvas id="previewCanvas" width="32" height="32" style="width: 64px; height: 64px;"></canvas>
-            <div class="info" id="statusText">Upload an image</div>
+            <div class="info" id="statusText">Upload or paste an image</div>
         </div>
     </div>
 
@@ -177,11 +180,10 @@
 
     let currentImg = null;
 
-    imgInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        fileLabel.innerText = file.name;
+    function handleImageFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+
+        fileLabel.innerText = file.name || 'Pasted Image';
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
@@ -192,6 +194,36 @@
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
+    }
+
+    imgInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
+
+    window.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const file = item.getAsFile();
+                handleImageFile(file);
+                break;
+            }
+        }
+    });
+
+    fileLabel.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileLabel.classList.add('dragover');
+    });
+
+    fileLabel.addEventListener('dragleave', () => {
+        fileLabel.classList.remove('dragover');
+    });
+
+    fileLabel.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileLabel.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleImageFile(e.dataTransfer.files[0]);
+        }
     });
 
     sizeSelect.addEventListener('change', () => {
