@@ -88,6 +88,9 @@
             border: 1px solid #3a3a46;
             border-radius: 4px;
             background-color: #18181c;
+            max-width: 128px;
+            max-height: 128px;
+            object-fit: contain;
         }
         .info {
             font-size: 12px;
@@ -142,20 +145,21 @@
     </div>
 
     <div class="group">
-        <label>2. Grid Size (Parts)</label>
+        <label>2. Max Resolution Limit (Aspect Ratio Preserved)</label>
         <select id="sizeSelect">
-            <option value="16">16 x 16</option>
-            <option value="32" selected>32 x 32</option>
-            <option value="64">64 x 64</option>
-            <option value="128">128 x 128</option>
-            <option value="256">256 x 256</option>
+            <option value="16">16 px (Tiny)</option>
+            <option value="32" selected>32 px (Small)</option>
+            <option value="64">64 px (Medium)</option>
+            <option value="128">128 px (Large)</option>
+            <option value="256">256 px (Extra Large)</option>
+            <option value="512">512 px (Ultra)</option>
         </select>
     </div>
 
     <div class="group">
         <label>Preview</label>
         <div class="preview-box">
-            <canvas id="previewCanvas" width="32" height="32" style="width: 64px; height: 64px;"></canvas>
+            <canvas id="previewCanvas" width="32" height="32"></canvas>
             <div class="info" id="statusText">Upload or paste an image</div>
         </div>
     </div>
@@ -231,15 +235,30 @@
     });
 
     function processImage() {
-        const size = parseInt(sizeSelect.value);
-        canvas.width = size;
-        canvas.height = size;
+        const maxSize = parseInt(sizeSelect.value);
+        let targetWidth = currentImg.width;
+        let targetHeight = currentImg.height;
 
-        ctx.clearRect(0, 0, size, size);
-        ctx.drawImage(currentImg, 0, 0, size, size);
+        if (targetWidth > targetHeight) {
+            if (targetWidth > maxSize) {
+                targetHeight = Math.max(1, Math.round((targetHeight * maxSize) / targetWidth));
+                targetWidth = maxSize;
+            }
+        } else {
+            if (targetHeight > maxSize) {
+                targetWidth = Math.max(1, Math.round((targetWidth * maxSize) / targetHeight));
+                targetHeight = maxSize;
+            }
+        }
 
-        const imgData = ctx.getImageData(0, 0, size, size);
-        const bmpBuffer = create24BitBMP(imgData.data, size, size);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        ctx.clearRect(0, 0, targetWidth, targetHeight);
+        ctx.drawImage(currentImg, 0, 0, targetWidth, targetHeight);
+
+        const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+        const bmpBuffer = create24BitBMP(imgData.data, targetWidth, targetHeight);
         
         const hexString = Array.from(new Uint8Array(bmpBuffer))
             .map(b => b.toString(16).padStart(2, '0').toUpperCase())
@@ -247,7 +266,7 @@
 
         hexOutput.value = hexString;
         copyBtn.disabled = false;
-        statusText.innerText = `Size: ${size}x${size} | Total parts: ${size * size}`;
+        statusText.innerText = `Size: ${targetWidth}x${targetHeight} | Total parts: ${targetWidth * targetHeight}`;
     }
 
     function create24BitBMP(rgbaData, width, height) {
